@@ -14,6 +14,11 @@ type status int
 
 const divisor = 4
 
+// Editing constant
+const (
+	noEdit = -1
+)
+
 const (
 	todo status = iota
 	inProgress
@@ -79,6 +84,7 @@ type Model struct {
 	focused  status
 	lists    []list.Model
 	quitting bool
+	editingIndex int
 }
 
 func (m *Model) MoveToNext() tea.Msg {
@@ -172,12 +178,36 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			models[board] = m // save the state of the current model
 			models[form] = NewForm(m.focused)
 			return models[form].Update(nil)
+		case "e":
+			list := m.lists[m.focused]
+			if len(list.VisibleItems()) == 0 {
+				return m, nil
+			}
+
+			task := list.SelectedItem().(Task)
+			editForm := NewForm(m.focused)
+			editForm.title.SetValue(task.title)
+			editForm.description.SetValue(task.description)
+			m.editingIndex = list.Index()
+			models[board] = m // save the state of the current model
+			models[form] = editForm
+			return models[form].Update(nil)
 		case "d":
 			return m, m.DeleteCurrent
 		}
 	case Task:
 		task := msg
-		return m, m.lists[task.status].InsertItem(len(m.lists[task.status].Items()), task)
+		list := &m.lists[task.status]
+
+		// if edit, replace existing task in list
+		if m.editingIndex != noEdit {
+			index := m.editingIndex
+			m.editingIndex = noEdit
+			return m, list.SetItem(index, task)
+		}
+
+		// add task to end of list
+		return m, list.InsertItem(len(list.Items()), task)
 	}
 	var cmd tea.Cmd
 	m.lists[m.focused], cmd = m.lists[m.focused].Update(msg)
@@ -228,10 +258,12 @@ type Form struct {
 }
 
 func NewForm(focused status) *Form {
-	form := Form{focused: focused}
-	form.title = textinput.New()
+	form := Form{
+		focused:     focused,
+		title:       textinput.New(),
+		description: textarea.New(),
+	}
 	form.title.Focus()
-	form.description = textarea.New()
 	return &form
 }
 
