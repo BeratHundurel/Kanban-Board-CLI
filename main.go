@@ -128,6 +128,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.MoveToNext
 		case "n":
 			models[model] = m
+			models[form] = NewForm(m.focused)
 			return models[form].Update(nil)
 		}
 	case Task:
@@ -248,8 +249,7 @@ func (f Form) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (f Form) View() string {
-	return lipgloss.JoinVertical(
-		lipgloss.Left, f.title.View(), f.description.View())
+	return lipgloss.JoinVertical(lipgloss.Left, f.title.View(), f.description.View())
 }
 
 func NewForm(focused status) *Form {
@@ -257,6 +257,7 @@ func NewForm(focused status) *Form {
 	form.title = textinput.New()
 	form.title.Focus()
 	form.description = textarea.New()
+	fmt.Printf("form: %v\n", form)
 	return form
 }
 
